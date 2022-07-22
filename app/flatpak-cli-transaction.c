@@ -504,49 +504,57 @@ operation_error (FlatpakTransaction            *transaction,
   /* Here we go to great lengths not to split the sentences. See
    * https://wiki.gnome.org/TranslationProject/DevGuidelines/Never%20split%20sentences
    */
-  if (g_error_matches (error, FLATPAK_ERROR, FLATPAK_ERROR_ALREADY_INSTALLED))
+  if (!error)
+    text = g_strdup ("(internal error, please report)");
+  else if (error->domain == FLATPAK_ERROR)
     {
-      if (non_fatal)
-        text = g_strdup_printf (_("Warning: %s%s%s already installed"),
-                                on, flatpak_ref_get_name (rref), off);
-      else
-        text = g_strdup_printf (_("Error: %s%s%s already installed"),
-                                on, flatpak_ref_get_name (rref), off);
+      switch (error->code)
+        {
+          case FLATPAK_ERROR_ALREADY_INSTALLED:
+            if (non_fatal)
+              text = g_strdup_printf (_("Warning: %s%s%s already installed"),
+                                      on, flatpak_ref_get_name (rref), off);
+            else
+              text = g_strdup_printf (_("Error: %s%s%s already installed"),
+                                      on, flatpak_ref_get_name (rref), off);
+            break;
+
+          case FLATPAK_ERROR_NOT_INSTALLED:
+            if (non_fatal)
+              text = g_strdup_printf (_("Warning: %s%s%s not installed"),
+                                      on, flatpak_ref_get_name (rref), off);
+            else
+              text = g_strdup_printf (_("Error: %s%s%s not installed"),
+                                      on, flatpak_ref_get_name (rref), off);
+            break;
+
+          case FLATPAK_ERROR_NEED_NEW_FLATPAK:
+            if (non_fatal)
+              text = g_strdup_printf (_("Warning: %s%s%s needs a later flatpak version"),
+                                      on, flatpak_ref_get_name (rref), off);
+            else
+              text = g_strdup_printf (_("Error: %s%s%s needs a later flatpak version"),
+                                      on, flatpak_ref_get_name (rref), off);
+            break;
+
+          case FLATPAK_ERROR_OUT_OF_SPACE:
+            if (non_fatal)
+              text = g_strdup (_("Warning: Not enough disk space to complete this operation"));
+            else
+              text = g_strdup (_("Error: Not enough disk space to complete this operation"));
+            break;
+
+          default:
+            break; /* text will be set below */
+        }
     }
-  else if (g_error_matches (error, FLATPAK_ERROR, FLATPAK_ERROR_NOT_INSTALLED))
-    {
-      if (non_fatal)
-        text = g_strdup_printf (_("Warning: %s%s%s not installed"),
-                                on, flatpak_ref_get_name (rref), off);
-      else
-        text = g_strdup_printf (_("Error: %s%s%s not installed"),
-                                on, flatpak_ref_get_name (rref), off);
-    }
-  else if (g_error_matches (error, FLATPAK_ERROR, FLATPAK_ERROR_NEED_NEW_FLATPAK))
-    {
-      if (non_fatal)
-        text = g_strdup_printf (_("Warning: %s%s%s needs a later flatpak version"),
-                                on, flatpak_ref_get_name (rref), off);
-      else
-        text = g_strdup_printf (_("Error: %s%s%s needs a later flatpak version"),
-                                on, flatpak_ref_get_name (rref), off);
-    }
-  else if (g_error_matches (error, FLATPAK_ERROR, FLATPAK_ERROR_OUT_OF_SPACE))
-    {
-      if (non_fatal)
-        text = g_strdup (_("Warning: Not enough disk space to complete this operation"));
-      else
-        text = g_strdup (_("Error: Not enough disk space to complete this operation"));
-    }
-  else if (error)
+  else if (text == NULL)
     {
       if (non_fatal)
         text = g_strdup_printf (_("Warning: %s"), error->message);
       else
         text = g_strdup_printf (_("Error: %s"), error->message);
     }
-  else
-    text = g_strdup ("(internal error, please report)");
 
   if (!non_fatal && self->first_operation_error == NULL)
     {
